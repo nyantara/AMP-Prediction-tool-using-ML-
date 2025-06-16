@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AMP Prediction Tool</title>
+  <style>
+    body {
+      margin: 0; padding: 20px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #e5f2f0;
+      color: #1a1a1a;
+      display: flex;
+      justify-content: space-between;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+    .container {
+      width: 48%;
+      background: linear-gradient(135deg, #dff4f1 0%, #f2faf9 100%);
+      border-radius: 12px;
+      padding: 25px 30px;
+      box-shadow: 4px 4px 15px rgba(0, 66, 66, 0.15);
+      position: relative;
+      overflow: hidden;
+    }
+    .container::before {
+      content: '';
+      position: absolute;
+      top: -60px;
+      right: -80px;
+      width: 180px;
+      height: 180px;
+      background: url('https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/DNA_chemical_structure.png/512px-DNA_chemical_structure.png') no-repeat center;
+      background-size: contain;
+      opacity: 0.07;
+      pointer-events: none;
+      filter: grayscale(80%) brightness(150%);
+      border-radius: 50%;
+    }
+    h1 {
+      margin-top: 0;
+      color: #0a5c58;
+      text-align: center;
+      user-select: none;
+    }
+    textarea {
+      width: 100%;
+      height: 150px;
+      padding: 10px;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: 2px solid #0a5c58;
+      resize: none;
+      box-sizing: border-box;
+      font-family: 'Courier New', Courier, monospace;
+      background: #f5fcfb;
+      outline-offset: 2px;
+      transition: border-color 0.3s ease;
+    }
+    textarea:focus {
+      border-color: #29a5a1;
+      background: #e1f6f4;
+    }
+    .radio-group {
+      margin-top: 20px;
+      margin-bottom: 10px;
+      font-size: 1.1rem;
+      color: #084643;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      user-select: none;
+    }
+    .radio-option {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .radio-option input[type="radio"] {
+      accent-color: #0a5c58;
+      transform: scale(1.2);
+      cursor: pointer;
+    }
+    .model-name {
+      font-weight: 600;
+      cursor: default;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #00675a;
+    }
+    .model-name .icon {
+      width: 22px;
+      height: 22px;
+      fill: #007b7a;
+      user-select: none;
+    }
+    a.description-link {
+      color: #0a7a75;
+      margin-left: auto;
+      font-size: 0.9rem;
+      text-decoration: underline;
+      cursor: pointer;
+      font-weight: 600;
+      user-select: none;
+      transition: color 0.25s ease;
+    }
+    a.description-link:hover {
+      color: #0eafa7;
+    }
+    .description-text {
+      margin-top: 8px;
+      padding: 12px 15px;
+      background: #d2f0ed;
+      border-radius: 8px;
+      border: 1px solid #0a5c58;
+      font-size: 0.95rem;
+      line-height: 1.3;
+      color: #044d49;
+      display: none;
+      user-select: text;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+    button#predictButton {
+      margin-top: 25px;
+      width: 100%;
+      background-color: #0a5c58;
+      border: none;
+      border-radius: 8px;
+      color: #e8f1f0;
+      font-size: 1.2rem;
+      font-weight: 700;
+      padding: 12px 0;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      box-shadow: 2px 4px 10px rgba(0, 92, 88, 0.4);
+    }
+    button#predictButton:hover {
+      background-color: #0e7f7b;
+    }
+    .sequence-block {
+     margin-bottom: 15px;  /* reduce space between sequences */
+     padding: 10px;
+     border: 1px solid #0e7f7b;
+     border-radius: 8px;
+     background-color: #e5fcfa;
+    }
+    .result-item {
+     margin-bottom: 8px; /* reduce vertical gap between models */
+     padding: 8px;
+     border-bottom: 1px solid #b2dfdb;
+    }
+    .result-item:last-child {
+     border-bottom: none;
+     margin-bottom: 0;
+    }
+    #resultDisplay {
+      margin-top: 5px 0 10px 0;
+      background: #cff9f3;
+      border-radius: 10px;
+      border: 2px solid #0e7f7b;
+      padding: 20px;
+      display: none;
+      font-size: 1rem;
+      color: #054941;
+      box-shadow: inset 0 0 8px #0a5c58;
+      white-space: pre-wrap;
+      font-family: 'Courier New', Courier, monospace;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    #resultDisplay strong {
+      color: #0a5c58;
+    }
+    #resultDisplay p {
+      margin: 4px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="leftContainer" aria-label="Input and Model Selection">
+    <h1>AMP Prediction Tool</h1>
+    
+    <div class="radio-group" role="radiogroup" aria-label="Select input type">
+      <div class="radio-option">
+        <input type="radio" id="peptide" name="inputType" value="peptide" checked />
+        <label for="peptide">Peptide Sequence</label>
+      </div>
+      <div class="radio-option">
+        <input type="radio" id="protein" name="inputType" value="protein" />
+        <label for="protein">Protein Sequence</label>
+      </div>
+    </div>
+
+    <textarea id="sequenceInput" aria-label="Input peptide FASTA sequence" placeholder="Enter peptide FASTA sequence here... Example:
+>seq1 AMP
+ACDEFGHIKLMNPQRSTVWY
+"></textarea>
+    <p>Or upload a file containing peptide sequences:</p>
+    <input type="file" id="fileInput" aria-label="Upload peptide FASTA file" accept=".fasta, .fa" />
+    
+    <div class="radio-group" role="radiogroup" aria-label="Select prediction model">
+      <div class="radio-option">
+        <input type="radio" id="randomForest" name="model" value="random_forest" checked />
+        <label for="randomForest" class="model-name" tabindex="0">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 6h16v2H4zM4 11h16v2H4zM4 16h16v2H4z"/>
+          </svg>
+          Random Forest
+        </label>
+        <a href="#" class="description-link" data-model="random_forest" aria-expanded="false" role="button" tabindex="0" aria-controls="desc-random_forest">What is this?</a>
+      </div>
+      <div id="desc-random_forest" class="description-text" role="region" aria-live="polite">
+        Random Forest is an ensemble learning method that builds multiple decision trees during training and merges their results to improve accuracy and prevent overfitting. It's commonly used for AMP (Antimicrobial Peptide) prediction because it can handle large datasets, capture complex relationships, and provide good generalization. Its ability to deal with both numerical and categorical data and its robustness to noise makes it ideal for biological data like AMP sequences.
+      </div>
+
+      <div class="radio-option">
+        <input type="radio" id="svm" name="model" value="svm" />
+        <label for="svm" class="model-name" tabindex="0">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" />
+          </svg>
+          SVM
+        </label>
+        <a href="#" class="description-link" data-model="svm" aria-expanded="false" role="button" tabindex="0" aria-controls="desc-svm">What is this?</a>
+      </div>
+      <div id="desc-svm" class="description-text" role="region" aria-live="polite">
+        Support Vector Machine (SVM) is a supervised learning model used for classification and regression tasks. It works by finding the hyperplane that best separates different classes in the feature space. SVM is widely used in AMP prediction because it effectively handles high-dimensional data, works well with small sample sizes, and can generalize well when trained properly. Its kernel trick allows it to capture complex, non-linear relationships, which is useful for predicting AMPs from sequence data.
+      </div>
+
+      <div class="radio-option">
+        <input type="radio" id="hybrid" name="model" value="hybrid" />
+        <label for="hybrid" class="model-name" tabindex="0">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <polygon points="4,4 20,4 20,20 4,20 4,4 12,12" />
+          </svg>
+          Hybrid
+        </label>
+        <a href="#" class="description-link" data-model="hybrid" aria-expanded="false" role="button" tabindex="0" aria-controls="desc-hybrid">What is this?</a>
+      </div>
+      <div id="desc-hybrid" class="description-text" role="region" aria-live="polite">
+        Hybrid model combines both Random Forest and SVM predictions to improve AMP detection accuracy by leveraging the strengths of both approaches.
+      </div>
+
+      <div class="radio-option">
+        <input type="radio" id="gbc" name="model" value="gradient_boosting" />
+        <label for="gbc" class="model-name" tabindex="0">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 6h16v12H4z" />
+            <path d="M9 12h6v2H9z" fill="#004d48"/>
+          </svg>
+          Gradient Boosting
+        </label>
+        <a href="#" class="description-link" data-model="gradient_boosting" aria-expanded="false" role="button" tabindex="0" aria-controls="desc-gradient_boosting">What is this?</a>
+      </div>
+      <div id="desc-gradient_boosting" class="description-text" role="region" aria-live="polite">
+        Gradient Boosting Classifier is a powerful ensemble technique that builds models sequentially to correct errors made by previous models. It boosts model performance by combining weak learners, and is effective for AMP prediction because it captures complex patterns and interactions in biological sequence data, often yielding high accuracy.
+      </div>
+    </div>
+
+    <button id="predictButton" aria-label="Predict AMP classification">Predict</button>
+  </div>
+
+  <div class="container" id="rightContainer" aria-label="Prediction results">
+    <h1>Results</h1>
+    <pre id="resultDisplay" role="region" aria-live="polite" aria-atomic="true"></pre>
+  </div>
+
+  <script>
+    // Toggle model description display on click of links
+    document.querySelectorAll('.description-link').forEach(link => {
+      link.onclick = function(e) {
+        e.preventDefault();
+        const model = this.dataset.model;
+        const desc = document.getElementById('desc-' + model);
+        const expanded = this.getAttribute('aria-expanded') === 'true';
+        // Hide all descriptions first
+        document.querySelectorAll('.description-text').forEach(d => {
+          d.style.display = 'none';
+          d.previousElementSibling && d.previousElementSibling.setAttribute('aria-expanded', 'false');
+        });
+        if (!expanded) {
+          desc.style.display = 'block';
+          this.setAttribute('aria-expanded', 'true');
+        } else {
+          desc.style.display = 'none';
+          this.setAttribute('aria-expanded', 'false');
+        }
+      };
+
+      // Also allow keyboard toggle with Enter/Space keys
+      link.onkeydown = function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          this.click();
+        }
+      };
+    });
+
+    const predictButton = document.getElementById('predictButton');
+    const resultDisplay = document.getElementById('resultDisplay');
+    const sequenceInput = document.getElementById('sequenceInput');
+    const fileInput = document.getElementById('fileInput');
+    const modelRadios = document.querySelectorAll('input[name="model"]');
+    const inputTypeRadios = document.querySelectorAll('input[name="inputType"]');
+
+    predictButton.addEventListener('click', async () => {
+      let sequence = sequenceInput.value.trim();
+      let inputType = Array.from(inputTypeRadios).find(radio => radio.checked).value;
+
+      // Check if a file is uploaded
+      if (fileInput && fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const text = await file.text();
+        sequence = extractSequencesFasta(text);
+      }
+
+      if (!sequence) {
+        alert('Please enter a peptide FASTA sequence or upload a file.');
+        sequenceInput.focus();
+        return;
+      }
+
+      let selectedModel = null;
+      modelRadios.forEach(radio => {
+        if (radio.checked) {
+          selectedModel = radio.value;
+        }
+      });
+      if (!selectedModel) {
+        alert('Please select a prediction model.');
+        return;
+      }
+
+      predictButton.disabled = true;
+      predictButton.textContent = 'Predicting...';
+
+      const payload = {
+        sequence: sequence,
+        model: selectedModel,
+        inputType: inputType // Pass the input type to the backend
+      };
+
+      try {
+        const response = await fetch('/predict', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          alert('Error: ' + (error.message || 'Unknown error'));
+          resultDisplay.style.display = 'none';
+          return;
+        }
+        const data = await response.json();
+        console.log("Received data:", data);
+        resultDisplay.style.display = 'block';
+        resultDisplay.innerHTML = '';
+        let flatResults = [];
+        if (Array.isArray(data)) {
+           flatResults = data;
+        } else if (Array.isArray(data.results)) {
+          flatResults = data.results;
+        } else {
+          resultDisplay.innerHTML = `<p>Unexpected response format. Please check the console.</p>`;
+          console.log("Unexpected response:", data);
+          return;
+        }
+        const groupedResults = {};
+        flatResults.forEach((result) => {
+          const seq = result.sequence || 'Unknown Sequence';
+          if (!groupedResults[seq]) {
+            groupedResults[seq] = [];
+          }
+          groupedResults[seq].push(result);
+        });
+        Object.entries(groupedResults).forEach(([sequence, results]) => {
+          const sequenceBlock = document.createElement('div');
+          sequenceBlock.className = 'sequence-block';
+          sequenceBlock.innerHTML = `<h3>Sequence: ${sequence}</h3>`;
+          results.forEach((result) => {
+            const resultItem = document.createElement('div');
+            resultItem.className = 'result-item';
+            resultItem.innerHTML = `
+              <p><strong>Model:</strong> ${result.model}</p>
+              <p><strong>Class:</strong> ${result.class}</p>
+              <p><strong>Probability:</strong> ${result.probability}</p>
+              <p><strong>Likelihood of being AMP:</strong> ${result.likelihood_AMP}</p>
+            `;
+            sequenceBlock.appendChild(resultItem);
+           });
+          resultDisplay.appendChild(sequenceBlock);
+        });
+
+      } catch (error) {
+        alert('Error: ' + error.message);
+        resultDisplay.style.display = 'none';
+      } finally {
+        predictButton.disabled = false;
+        predictButton.textContent = 'Predict';
+      }
+    });
+    
+    function extractSequencesFasta(fastaText) {
+       const entries = fastaText.trim().split(/^>/gm).filter(Boolean);
+       return entries.map(entry => {
+        const lines = entry.split('\n');
+        const header = lines[0].trim();
+        const sequence = lines.slice(1).join('').replace(/\s+/g, '').toUpperCase();
+        return `>${header}\n${sequence}`;
+       }).join('\n');
+    }
+
+    function extractSequencesFromFasta(fastaText) {
+     const entries = fastaText.trim().split(/^>/gm).filter(Boolean);
+     return entries.map(entry => {
+      const lines = entry.split('\n');
+      const header = lines[0].trim();
+      const sequence = lines.slice(1).join('').replace(/\s+/g, '').toUpperCase();
+      return { header: '>' + header, sequence };
+     });
+    }
+    
+  </script>
+</body>
+</html>
